@@ -380,7 +380,7 @@
           <div class="card">
             <div class="card-header">
               <span class="card-title">Usuarios del Sistema</span>
-              <button class="btn btn-primary btn-sm" onclick="openModal('userModal')">
+              <button class="btn btn-primary btn-sm" onclick="openCreateUserModal()">
                 <svg viewBox="0 0 24 24" fill="currentColor">
                   <path d="M19 13H13v6h-2v-6H5v-2h6V5h2v6h6v2z" />
                 </svg>
@@ -634,7 +634,14 @@
       <div class="form-grid">
         <div class="field"><label>Nombre completo</label><input id="uNom" placeholder="Juan Pérez"></div>
         <div class="field"><label>Usuario (login)</label><input id="uUser" placeholder="jperez"></div>
-        <div class="field"><label>Contraseña</label><input id="uPass" type="password" placeholder="••••••••"></div>
+        <div class="field">
+          <label>Contraseña</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="uPass" type="password" placeholder="••••••••" style="flex:1">
+            <button type="button" class="btn btn-outline btn-sm" onclick="togglePasswordVisibility('uPass')">👁️</button>
+          </div>
+          <div style="margin-top:6px;font-size:11px;color:var(--gray-400)">Deja en blanco para conservar la contraseña actual.</div>
+        </div>
         <div class="field"><label>Rol</label>
           <select id="uRol">
             <option value="vendedor">Vendedor</option>
@@ -650,11 +657,13 @@
   </div>
 
   <script>
-    const API = '/api';
+    const API = window.location.origin + '/api';
     let currentUser = null;
     let cart = [];
     let currentImageBase64 = '';
     let editingProductId = null;
+    let editingUserId = null;
+    let userModalMode = 'create';
     let appData = { productos: [], ventas: [], bodega: [], distribuidores: [], users: [] };
 
     function handleImageSelect(e) {
@@ -672,12 +681,20 @@
     const fmt = n => '$' + parseFloat(n || 0).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
     async function api(path, options = {}) {
-      const res = await fetch(API + path, {
+      const res = await fetch(`${API}${path}`, {
         headers: { 'Content-Type': 'application/json' },
         ...options
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.message || 'Error en la solicitud');
+      const text = await res.text();
+      let data = {};
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          data = { message: text };
+        }
+      }
+      if (!res.ok) throw new Error(data.message || text || 'Error en la solicitud');
       return data;
     }
 
@@ -690,7 +707,7 @@
           api('/distribuidores'),
           api('/usuarios')
         ]);
-        appData = { productos, ventas, bodega, distribuidores, usuarios };
+        appData = { productos, ventas, bodega, distribuidores, users: usuarios };
         renderAll();
       } catch (err) {
         console.error(err);
@@ -864,8 +881,10 @@
     }
 
     function renderUsuarios() {
-      const users = appData.users || [];
-      document.getElementById('userTable').innerHTML = users.map(u => `<tr><td style="font-family:'DM Mono',monospace;font-size:12px">${u.username}</td><td style="font-weight:600">${u.nombre}</td><td><span class="badge ${u.rol === 'admin' ? 'badge-blue' : 'badge-green'}">${u.rol === 'admin' ? 'Administrador' : 'Vendedor'}</span></td><td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td><td>${u.id !== 1 ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('fs_users','${u.id}')">✕</button>` : '<span style="font-size:11px;color:var(--gray-400)">protegido</span>'}</td></tr>`).join('');
+      const users = appData.users || appData.usuarios || [];
+      document.getElementById('userTable').innerHTML = users.length
+        ? users.map(u => `<tr><td style="font-family:'DM Mono',monospace;font-size:12px">${u.username}</td><td style="font-weight:600">${u.nombre}</td><td><span class="badge ${u.rol === 'admin' ? 'badge-blue' : 'badge-green'}">${u.rol === 'admin' ? 'Administrador' : 'Vendedor'}</span></td><td><span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td><td><div style="display:flex;gap:6px;justify-content:flex-end"><button class="btn btn-outline btn-sm" onclick="editUsuario('${u.id}')">✏️</button><button class="btn btn-outline btn-sm" onclick="toggleUsuario('${u.id}', ${u.activo ? 0 : 1})">${u.activo ? 'Desactivar' : 'Activar'}</button>${u.id !== 1 ? `<button class="btn btn-danger btn-sm" onclick="deleteItem('fs_users','${u.id}')">✕</button>` : '<span style="font-size:11px;color:var(--gray-400)">protegido</span>'}</div></td></tr>`).join('')
+        : '<tr><td colspan="5" style="text-align:center;color:var(--gray-400);padding:24px">Sin usuarios</td></tr>';
     }
 
     function searchProdVenta(q) {
@@ -1063,16 +1082,76 @@
     }
 
     async function saveUsuario() {
-      const payload = {
-        username: v('uUser'),
-        password: v('uPass'),
-        nombre: v('uNom'),
-        rol: v('uRol')
-      };
-      if (!payload.username || !payload.password) return;
-      await api('/usuarios', { method: 'POST', body: JSON.stringify(payload) });
-      closeModal('userModal');
-      ['uNom', 'uUser', 'uPass'].forEach(id => document.getElementById(id).value = '');
+      try {
+        const payload = {
+          username: v('uUser').trim(),
+          password: v('uPass').trim(),
+          nombre: v('uNom').trim(),
+          rol: v('uRol')
+        };
+        if (!payload.username || !payload.nombre) {
+          alert('Completa el nombre de usuario y el nombre completo.');
+          return;
+        }
+        if (!editingUserId && !payload.password) {
+          alert('Ingresa una contraseña para crear el usuario.');
+          return;
+        }
+
+        if (userModalMode === 'edit' && editingUserId) {
+          const updatePayload = { username: payload.username, nombre: payload.nombre, rol: payload.rol };
+          if (payload.password) updatePayload.password = payload.password;
+          await api('/usuarios/' + editingUserId, { method: 'PUT', body: JSON.stringify(updatePayload) });
+        } else {
+          await api('/usuarios', { method: 'POST', body: JSON.stringify(payload) });
+        }
+
+        closeModal('userModal');
+        editingUserId = null;
+        userModalMode = 'create';
+        ['uNom', 'uUser', 'uPass'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+        await initData();
+      } catch (err) {
+        console.error(err);
+        alert(err.message || 'No se pudo guardar el usuario.');
+      }
+    }
+
+    function openCreateUserModal() {
+      editingUserId = null;
+      userModalMode = 'create';
+      document.querySelector('#userModal h3').textContent = '👤 Nuevo Usuario';
+      document.getElementById('uNom').value = '';
+      document.getElementById('uUser').value = '';
+      document.getElementById('uPass').value = '';
+      document.getElementById('uRol').value = 'vendedor';
+      openModal('userModal');
+    }
+
+    function editUsuario(id) {
+      const user = (appData.users || appData.usuarios || []).find(u => String(u.id) === String(id));
+      if (!user) return;
+      editingUserId = user.id;
+      userModalMode = 'edit';
+      document.querySelector('#userModal h3').textContent = '✏️ Editar Usuario';
+      document.getElementById('uNom').value = user.nombre || '';
+      document.getElementById('uUser').value = user.username || '';
+      document.getElementById('uPass').value = '';
+      document.getElementById('uRol').value = user.rol || 'vendedor';
+      openModal('userModal');
+    }
+
+    function togglePasswordVisibility(id) {
+      const input = document.getElementById(id);
+      if (!input) return;
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    async function toggleUsuario(id, activo) {
+      await api('/usuarios/' + id, { method: 'PUT', body: JSON.stringify({ activo }) });
       await initData();
     }
 

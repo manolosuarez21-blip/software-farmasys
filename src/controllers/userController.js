@@ -22,7 +22,49 @@ async function create(req, res) {
   }
 
   const result = await sqliteRun(storage.sqliteDb, 'INSERT INTO users (username, password, nombre, rol, activo) VALUES (?, ?, ?, ?, 1)', [username, password, nombre, rol]);
-  res.json({ ok: true, id: result.lastID });
+  return res.json({ ok: true, id: result.lastID });
+}
+
+async function updateById(req, res) {
+  const { id } = req.params;
+  const { nombre, rol, activo, password } = req.body;
+  await initDb();
+
+  if (storage.mode === 'mongo') {
+    const update = {};
+    if (nombre !== undefined) update.nombre = nombre;
+    if (rol !== undefined) update.rol = rol;
+    if (activo !== undefined) update.activo = activo;
+    if (password !== undefined) update.password = password;
+
+    await storage.mongoDb.collection('users').updateOne({ _id: toObjectId(id) }, { $set: update });
+    return res.json({ ok: true });
+  }
+
+  const fields = [];
+  const values = [];
+  if (nombre !== undefined) {
+    fields.push('nombre = ?');
+    values.push(nombre);
+  }
+  if (rol !== undefined) {
+    fields.push('rol = ?');
+    values.push(rol);
+  }
+  if (activo !== undefined) {
+    fields.push('activo = ?');
+    values.push(activo);
+  }
+  if (password !== undefined) {
+    fields.push('password = ?');
+    values.push(password);
+  }
+
+  if (!fields.length) return res.status(400).json({ ok: false, message: 'No hay campos para actualizar' });
+
+  values.push(id);
+  await sqliteRun(storage.sqliteDb, `UPDATE users SET ${fields.join(', ')} WHERE id = ?`, values);
+  return res.json({ ok: true });
 }
 
 async function deleteById(req, res) {
@@ -36,4 +78,4 @@ async function deleteById(req, res) {
   res.json({ ok: true });
 }
 
-module.exports = { getAll, create, deleteById };
+module.exports = { getAll, create, updateById, deleteById };

@@ -4,3 +4,6 @@ node_modules/
 .DS_Store
 *.log
 npm-debug.log*
+*.sqlite
+*.sqlite3
+tests/*.sqlite
