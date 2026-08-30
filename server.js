@@ -39,12 +39,34 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'farmasys.html'));
 });
 
+const os = require('os');
+
+function getLocalIp() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const net of interfaces[name]) {
+      if (net.family === 'IPv4' && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
 // Iniciar servidor
 async function startServer() {
   try {
     await initDb();
-    app.listen(PORT, () => {
-      console.log(`FARMAsys backend corriendo en http://localhost:${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      const localIp = getLocalIp();
+      console.log('\n============================================================');
+      console.log('  🚀 FARMAsys - Sistema de Gestión Farmacéutica en Ejecución');
+      console.log('------------------------------------------------------------');
+      console.log(`  💻 Acceso desde ESTE equipo:`);
+      console.log(`     http://localhost:${PORT}`);
+      console.log(`\n  📱 Acceso desde OTROS equipos (Mismo local / Red Wi-Fi - LAN):`);
+      console.log(`     http://${localIp}:${PORT}`);
+      console.log('============================================================\n');
     });
   } catch (error) {
     console.error('Error iniciando el servidor:', error);
