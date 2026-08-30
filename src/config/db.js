@@ -52,11 +52,17 @@ function initSqliteDb() {
               vence TEXT,
               distribuidor TEXT,
               ubicacion TEXT,
-              imagen TEXT
+              imagen TEXT,
+              codigo_barras TEXT
             )
           `);
           try {
             await sqliteRun(db, 'ALTER TABLE productos ADD COLUMN imagen TEXT');
+          } catch (e) {
+            // Ignorar si la columna ya existe
+          }
+          try {
+            await sqliteRun(db, 'ALTER TABLE productos ADD COLUMN codigo_barras TEXT');
           } catch (e) {
             // Ignorar si la columna ya existe
           }
@@ -70,9 +76,21 @@ function initSqliteDb() {
               descuento REAL DEFAULT 0,
               subtotal REAL DEFAULT 0,
               total REAL DEFAULT 0,
+              factura_numero TEXT,
+              factura_emitida INTEGER DEFAULT 0,
               created_at TEXT DEFAULT CURRENT_TIMESTAMP
             )
           `);
+          try {
+            await sqliteRun(db, 'ALTER TABLE ventas ADD COLUMN factura_numero TEXT');
+          } catch (e) {
+            // Ignorar si la columna ya existe
+          }
+          try {
+            await sqliteRun(db, 'ALTER TABLE ventas ADD COLUMN factura_emitida INTEGER DEFAULT 0');
+          } catch (e) {
+            // Ignorar si la columna ya existe
+          }
           await sqliteRun(db, `
             CREATE TABLE IF NOT EXISTS venta_items (
               id INTEGER PRIMARY KEY AUTOINCREMENT,

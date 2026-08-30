@@ -185,6 +185,12 @@
                     style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;outline:none"
                     oninput="searchProdVenta(this.value)">
                 </div>
+                <div style="display:flex;gap:10px;margin-bottom:8px">
+                  <input id="ventaBarcode" type="text" placeholder="Escanee código de barras o ingréselo"
+                    style="flex:1;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:7px;font-family:inherit;font-size:13px;outline:none"
+                    onkeydown="if (event.key === 'Enter') { event.preventDefault(); addProductByBarcode(document.getElementById('ventaBarcode').value); }">
+                </div>
+                <div style="font-size:11px;color:var(--gray-400);margin-bottom:8px">Puedes buscar por nombre, código interno o código de barras.</div>
                 <div class="prod-search-result" id="ventaResults"></div>
               </div>
 
@@ -199,6 +205,16 @@
                   <div class="field">
                     <label>Cliente (opcional)</label>
                     <input type="text" id="ventaCliente" placeholder="Nombre del cliente">
+                  </div>
+                  <div class="field">
+                    <label style="display:flex;align-items:center;gap:8px">
+                      <input type="checkbox" id="ventaFactura" style="width:auto">
+                      Emitir factura
+                    </label>
+                  </div>
+                  <div class="field">
+                    <label>Número de factura</label>
+                    <input type="text" id="ventaFacturaNum" placeholder="F-000001">
                   </div>
                   <div class="field full">
                     <label>Notas</label>
@@ -551,6 +567,7 @@
           </select>
         </div>
         <div class="field"><label>Stock inicial</label><input id="iStock" type="number" min="0" placeholder="0"></div>
+        <div class="field"><label>Código de barras</label><input id="iBarcode" placeholder="7751234567890"></div>
         <div class="field"><label>Precio de venta ($)</label><input id="iPrecio" type="number" min="0" step="0.01"
             placeholder="0.00"></div>
         <div class="field"><label>Precio de costo ($)</label><input id="iCosto" type="number" min="0" step="0.01"
@@ -889,14 +906,34 @@
 
     function searchProdVenta(q) {
       const el = document.getElementById('ventaResults');
-      if (!q || q.length < 2) { el.style.display = 'none'; return; }
-      const prods = (appData.productos || []).filter(p => p.nombre.toLowerCase().includes(q.toLowerCase()) && Number(p.stock) > 0);
+      const query = (q || '').toLowerCase().trim();
+      if (!query || query.length < 2) { el.style.display = 'none'; return; }
+      const prods = (appData.productos || []).filter(p => {
+        const hayNombre = (p.nombre || '').toLowerCase().includes(query);
+        const hayCodigo = (p.codigo || '').toLowerCase().includes(query);
+        const hayBarra = (p.codigo_barras || '').toLowerCase().includes(query);
+        return (hayNombre || hayCodigo || hayBarra) && Number(p.stock) > 0;
+      });
       if (!prods.length) { el.style.display = 'none'; return; }
       el.style.display = 'block';
       el.innerHTML = prods.map(p => {
         const imgHtml = p.imagen ? `<img src="${p.imagen}" class="prod-img-thumb" alt="${p.nombre}">` : `<div class="prod-img-placeholder">💊</div>`;
-        return `<div class="prod-search-item" onclick="addToCart('${p.id}')"><div style="display:flex;align-items:center;gap:10px">${imgHtml}<div><div style="font-weight:600;font-size:13px">${p.nombre}</div><div style="font-size:11px;color:var(--gray-400)">Stock: ${p.stock} | ${p.codigo}</div></div></div><div style="font-weight:700;color:var(--blue-600)">${fmt(p.precio)}</div></div>`;
+        return `<div class="prod-search-item" onclick="addToCart('${p.id}')"><div style="display:flex;align-items:center;gap:10px">${imgHtml}<div><div style="font-weight:600;font-size:13px">${p.nombre}</div><div style="font-size:11px;color:var(--gray-400)">Stock: ${p.stock} | ${p.codigo}${p.codigo_barras ? ' | ' + p.codigo_barras : ''}</div></div></div><div style="font-weight:700;color:var(--blue-600)">${fmt(p.precio)}</div></div>`;
       }).join('');
+    }
+
+    function addProductByBarcode(code) {
+      const barcode = (code || '').trim();
+      if (!barcode) return;
+      const p = (appData.productos || []).find(x => String(x.codigo_barras || '').trim() === barcode || String(x.codigo || '').trim() === barcode);
+      if (!p) {
+        alert('No se encontró un producto con ese código de barras o código interno.');
+        return;
+      }
+      addToCart(p.id || p._id);
+      document.getElementById('ventaBarcode').value = '';
+      document.getElementById('ventaSearch').value = '';
+      document.getElementById('ventaResults').style.display = 'none';
     }
 
     function addToCart(pid) {
@@ -950,17 +987,21 @@
       const pct = parseFloat(document.getElementById('descuentoPct').value) || 0;
       const subtotal = cart.reduce((a, c) => a + c.precio * c.qty, 0);
       const total = subtotal - subtotal * pct / 100;
+      const facturaEmitida = document.getElementById('ventaFactura').checked;
+      const facturaNumero = (document.getElementById('ventaFacturaNum').value || '').trim() || (facturaEmitida ? `F-${Date.now().toString().slice(-6)}` : '');
 
       try {
         await api('/ventas', {
           method: 'POST',
-          body: JSON.stringify({ fecha, vendedor: currentUser.nombre, cliente, nota, descuento: pct, subtotal, total, items: cart.map(c => ({ ...c, producto_id: c.id })) })
+          body: JSON.stringify({ fecha, vendedor: currentUser.nombre, cliente, nota, descuento: pct, subtotal, total, factura_emitida: facturaEmitida, factura_numero: facturaNumero, items: cart.map(c => ({ ...c, producto_id: c.id })) })
         });
         cart = [];
         renderCart();
         document.getElementById('ventaFecha').valueAsDate = new Date();
         document.getElementById('ventaCliente').value = '';
         document.getElementById('ventaNota').value = '';
+        document.getElementById('ventaFactura').checked = false;
+        document.getElementById('ventaFacturaNum').value = '';
         document.getElementById('descuentoPct').value = '0';
         const a = document.getElementById('ventaAlert');
         a.style.display = 'block';
@@ -975,7 +1016,7 @@
       editingProductId = null;
       const t = document.getElementById('invModalTitle');
       if (t) t.textContent = '➕ Nuevo Producto';
-      ['iCod', 'iNom', 'iStock', 'iPrecio', 'iCosto', 'iIngreso', 'iVence', 'iDist', 'iUbic', 'iFoto'].forEach(id => {
+      ['iCod', 'iNom', 'iStock', 'iBarcode', 'iPrecio', 'iCosto', 'iIngreso', 'iVence', 'iDist', 'iUbic', 'iFoto'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });
@@ -994,6 +1035,7 @@
       document.getElementById('iNom').value = p.nombre || '';
       document.getElementById('iCat').value = p.categoria || 'Medicamento';
       document.getElementById('iStock').value = p.stock || 0;
+      document.getElementById('iBarcode').value = p.codigo_barras || '';
       document.getElementById('iPrecio').value = p.precio || 0;
       document.getElementById('iCosto').value = p.costo || 0;
       document.getElementById('iIngreso').value = p.ingreso || '';
@@ -1023,7 +1065,8 @@
         vence: v('iVence'),
         distribuidor: v('iDist'),
         ubicacion: v('iUbic'),
-        imagen: currentImageBase64 || null
+        imagen: currentImageBase64 || null,
+        codigo_barras: v('iBarcode') || null
       };
       if (!payload.nombre) return;
       if (editingProductId) {
@@ -1033,7 +1076,7 @@
       }
       closeModal('invModal');
       editingProductId = null;
-      ['iCod', 'iNom', 'iStock', 'iPrecio', 'iCosto', 'iIngreso', 'iVence', 'iDist', 'iUbic', 'iFoto'].forEach(id => {
+      ['iCod', 'iNom', 'iStock', 'iBarcode', 'iPrecio', 'iCosto', 'iIngreso', 'iVence', 'iDist', 'iUbic', 'iFoto'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.value = '';
       });

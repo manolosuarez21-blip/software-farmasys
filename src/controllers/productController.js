@@ -14,28 +14,28 @@ async function getAll(req, res) {
 }
 
 async function create(req, res) {
-  const { codigo, nombre, categoria, stock, precio, costo, ingreso, vence, distribuidor, ubicacion, imagen } = req.body;
+  const { codigo, nombre, categoria, stock, precio, costo, ingreso, vence, distribuidor, ubicacion, imagen, codigo_barras } = req.body;
   await initDb();
 
   if (storage.mode === 'mongo') {
     const result = await storage.mongoDb.collection('productos').insertOne({
       codigo, nombre, categoria, stock: stock || 0, precio: precio || 0, costo: costo || 0,
       ingreso: ingreso || null, vence: vence || null, distribuidor: distribuidor || null,
-      ubicacion: ubicacion || null, imagen: imagen || null
+      ubicacion: ubicacion || null, imagen: imagen || null, codigo_barras: codigo_barras || null
     });
     return res.json({ ok: true, id: result.insertedId.toString() });
   }
 
   const result = await sqliteRun(storage.sqliteDb,
-    'INSERT INTO productos (codigo, nombre, categoria, stock, precio, costo, ingreso, vence, distribuidor, ubicacion, imagen) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [codigo, nombre, categoria, stock || 0, precio || 0, costo || 0, ingreso || null, vence || null, distribuidor || null, ubicacion || null, imagen || null]
+    'INSERT INTO productos (codigo, nombre, categoria, stock, precio, costo, ingreso, vence, distribuidor, ubicacion, imagen, codigo_barras) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [codigo, nombre, categoria, stock || 0, precio || 0, costo || 0, ingreso || null, vence || null, distribuidor || null, ubicacion || null, imagen || null, codigo_barras || null]
   );
   res.json({ ok: true, id: result.lastID });
 }
 
 async function updateById(req, res) {
   const { id } = req.params;
-  const { codigo, nombre, categoria, stock, precio, costo, ingreso, vence, distribuidor, ubicacion, imagen } = req.body;
+  const { codigo, nombre, categoria, stock, precio, costo, ingreso, vence, distribuidor, ubicacion, imagen, codigo_barras } = req.body;
   await initDb();
 
   if (storage.mode === 'mongo') {
@@ -43,7 +43,8 @@ async function updateById(req, res) {
       codigo, nombre, categoria,
       stock: stock || 0, precio: precio || 0, costo: costo || 0,
       ingreso: ingreso || null, vence: vence || null,
-      distribuidor: distribuidor || null, ubicacion: ubicacion || null
+      distribuidor: distribuidor || null, ubicacion: ubicacion || null,
+      codigo_barras: codigo_barras || null
     };
     if (imagen !== undefined) updateDoc.imagen = imagen;
 
@@ -56,13 +57,13 @@ async function updateById(req, res) {
 
   if (imagen !== undefined) {
     await sqliteRun(storage.sqliteDb,
-      'UPDATE productos SET codigo = ?, nombre = ?, categoria = ?, stock = ?, precio = ?, costo = ?, ingreso = ?, vence = ?, distribuidor = ?, ubicacion = ?, imagen = ? WHERE id = ?',
-      [codigo, nombre, categoria, stock || 0, precio || 0, costo || 0, ingreso || null, vence || null, distribuidor || null, ubicacion || null, imagen, id]
+      'UPDATE productos SET codigo = ?, nombre = ?, categoria = ?, stock = ?, precio = ?, costo = ?, ingreso = ?, vence = ?, distribuidor = ?, ubicacion = ?, imagen = ?, codigo_barras = ? WHERE id = ?',
+      [codigo, nombre, categoria, stock || 0, precio || 0, costo || 0, ingreso || null, vence || null, distribuidor || null, ubicacion || null, imagen, codigo_barras || null, id]
     );
   } else {
     await sqliteRun(storage.sqliteDb,
-      'UPDATE productos SET codigo = ?, nombre = ?, categoria = ?, stock = ?, precio = ?, costo = ?, ingreso = ?, vence = ?, distribuidor = ?, ubicacion = ? WHERE id = ?',
-      [codigo, nombre, categoria, stock || 0, precio || 0, costo || 0, ingreso || null, vence || null, distribuidor || null, ubicacion || null, id]
+      'UPDATE productos SET codigo = ?, nombre = ?, categoria = ?, stock = ?, precio = ?, costo = ?, ingreso = ?, vence = ?, distribuidor = ?, ubicacion = ?, codigo_barras = ? WHERE id = ?',
+      [codigo, nombre, categoria, stock || 0, precio || 0, costo || 0, ingreso || null, vence || null, distribuidor || null, ubicacion || null, codigo_barras || null, id]
     );
   }
 
