@@ -52,11 +52,11 @@ body { font-family:'DM Sans', sans-serif; background: var(--gray-50); color: var
 .form-field { margin-bottom:16px; }
 .form-field label { display:block; font-size:12px; font-weight:600; color:var(--gray-500); margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
 .form-field input, .form-field select {
-  width:100%; padding:10px 14px; border:1.5px solid var(--gray-200); border-radius:8px;
-  font-family:inherit; font-size:14px; color:var(--gray-800); background:var(--gray-50);
+  width:100%; padding:10px 14px; border:1.5px solid var(--gray-300); border-radius:8px;
+  font-family:inherit; font-size:14px; color:#000000 !important; background-color:#ffffff !important;
   outline:none; transition:.2s;
 }
-.form-field input:focus, .form-field select:focus { border-color:var(--blue-400); background:white; box-shadow:0 0 0 3px var(--blue-100); }
+.form-field input:focus, .form-field select:focus { border-color:var(--blue-400); background-color:#ffffff !important; color:#000000 !important; box-shadow:0 0 0 3px var(--blue-100); }
 .btn-login {
   width:100%; padding:12px; background:var(--blue-500); color:white; border:none;
   border-radius:8px; font-family:inherit; font-size:15px; font-weight:600; cursor:pointer;
@@ -168,10 +168,28 @@ tr:hover td { background:var(--blue-50); }
 .field { display:flex; flex-direction:column; gap:5px; }
 .field label { font-size:11px; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:.4px; }
 .field input, .field select, .field textarea {
-  padding:9px 12px; border:1.5px solid var(--gray-200); border-radius:7px;
-  font-family:inherit; font-size:13px; color:var(--gray-800); outline:none; transition:.2s;
+  padding:9px 12px; border:1.5px solid var(--gray-300); border-radius:7px;
+  font-family:inherit; font-size:13px; color:#000000 !important; background-color:#ffffff !important;
+  outline:none; transition:.2s;
 }
-.field input:focus, .field select:focus, .field textarea:focus { border-color:var(--blue-400); box-shadow:0 0 0 3px var(--blue-100); }
+.field input:focus, .field select:focus, .field textarea:focus { border-color:var(--blue-400); background-color:#ffffff !important; color:#000000 !important; box-shadow:0 0 0 3px var(--blue-100); }
+
+/* Fuerza fondo blanco y texto negro en cualquier caja de texto o autocompletado */
+input, select, textarea {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #000000 !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
 .modal-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
 
 /* ─── SEARCH ─────────────────────────────────────────── */
