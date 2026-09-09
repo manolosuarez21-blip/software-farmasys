@@ -1,23 +1,17 @@
 @echo off
-title FARMAsys - Servidor de Punto de Venta Local
+title FARMAsys - Sistema de Gestión Farmacéutica
 color 0A
 
 echo ============================================================
-echo   🚀 INICIANDO FARMASYS - SISTEMA DE GESTION FARMACEUTICA
+echo   🚀 INICIANDO FARMASYS - APLICACION DE ESCRITORIO
 echo ============================================================
 echo.
 
-REM Verificar si existen los módulos instalados
 if not exist node_modules (
-    echo [!] Instalando dependencias necesarias por primera vez...
+    echo [!] Instalando dependencias necesarias...
     call npm install
     echo.
 )
 
-echo [✓] Servidor activado. Abriendo FARMAsys en el navegador...
-timeout /t 2 >nul
-start http://localhost:3000
-
-echo.
-call npm start
-pause
+echo [✓] Iniciando FARMAsys...
+call npx electron .

@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "description": "Sistema de farmacia con frontend, backend y base de datos local en SQLite",
   "main": "electron-main.js",
+  "author": "FARMAsys",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
@@ -12,6 +13,7 @@
   "build": {
     "appId": "com.farmasys.app",
     "productName": "FARMAsys",
+    "npmRebuild": false,
     "files": [
       "**/*",
       "!dist/*"
