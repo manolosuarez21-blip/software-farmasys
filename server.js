@@ -86,4 +86,4 @@ if (require.main === module) {
   startServer();
 }
 
-module.exports = { initDb };
+module.exports = { initDb, startServer, app };
