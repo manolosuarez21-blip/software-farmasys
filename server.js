@@ -23,7 +23,12 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, { index: 'farmasys.html' }));
+
+// Ruta principal para servir el frontend
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'farmasys.html'));
+});
 
 // Registrar rutas
 app.use('/api', authRoutes);
@@ -34,7 +39,7 @@ app.use('/api/distribuidores', supplierRoutes);
 app.use('/api/usuarios', userRoutes);
 app.use('/api/reportes', reportRoutes);
 
-// Ruta fallback para servir el frontend
+// Ruta fallback para servir el frontend en cualquier otra URL
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'farmasys.html'));
 });
