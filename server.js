@@ -59,24 +59,37 @@ function getLocalIp() {
 }
 
 // Iniciar servidor
-async function startServer() {
-  try {
-    await initDb();
-    app.listen(PORT, '0.0.0.0', () => {
-      const localIp = getLocalIp();
-      console.log('\n============================================================');
-      console.log('  🚀 FARMAsys - Sistema de Gestión Farmacéutica en Ejecución');
-      console.log('------------------------------------------------------------');
-      console.log(`  💻 Acceso desde ESTE equipo:`);
-      console.log(`     http://localhost:${PORT}`);
-      console.log(`\n  📱 Acceso desde OTROS equipos (Mismo local / Red Wi-Fi - LAN):`);
-      console.log(`     http://${localIp}:${PORT}`);
-      console.log('============================================================\n');
-    });
-  } catch (error) {
-    console.error('Error iniciando el servidor:', error);
-    process.exit(1);
-  }
+function startServer() {
+  return new Promise(async (resolve, reject) => {
+    try {
+      await initDb();
+      const server = app.listen(PORT, '0.0.0.0', () => {
+        const localIp = getLocalIp();
+        console.log('\n============================================================');
+        console.log('  🚀 FARMAsys - Sistema de Gestión Farmacéutica en Ejecución');
+        console.log('------------------------------------------------------------');
+        console.log(`  💻 Acceso desde ESTE equipo:`);
+        console.log(`     http://localhost:${PORT}`);
+        console.log(`\n  📱 Acceso desde OTROS equipos (Mismo local / Red Wi-Fi - LAN):`);
+        console.log(`     http://${localIp}:${PORT}`);
+        console.log('============================================================\n');
+        resolve(server);
+      });
+
+      server.on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          console.warn(`[Servidor] El puerto ${PORT} ya está en uso. Reutilizando el servidor activo.`);
+          resolve(null);
+        } else {
+          console.error('Error iniciando el servidor:', err);
+          reject(err);
+        }
+      });
+    } catch (error) {
+      console.error('Error inicializando base de datos:', error);
+      reject(error);
+    }
+  });
 }
 
 process.on('uncaughtException', (err) => {

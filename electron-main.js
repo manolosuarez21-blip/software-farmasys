@@ -33,10 +33,10 @@ function createWindow() {
 app.whenReady().then(async () => {
   try {
     await startServer();
-    createWindow();
   } catch (error) {
-    console.error('Error al iniciar el servidor de FARMAsys:', error);
+    console.error('Advertencia iniciando servidor:', error);
   }
+  createWindow();
 });
 
 app.on('window-all-closed', () => {
