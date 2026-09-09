@@ -14,16 +14,46 @@ function createWindow() {
     title: 'FARMAsys - Sistema de Gestión Farmacéutica',
     icon: path.join(__dirname, 'logo.png'),
     autoHideMenuBar: true,
+    show: false,
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true
     }
   });
 
-  // Quitar la barra de menú superior para que parezca una app nativa
   Menu.setApplicationMenu(null);
 
-  mainWindow.loadURL(`http://localhost:${PORT}`);
+  const targetUrl = `http://localhost:${PORT}`;
+
+  let retryCount = 0;
+  function loadApp() {
+    mainWindow.loadURL(targetUrl).catch(() => {
+      // Reintentar si el servidor aún está iniciando
+    });
+  }
+
+  mainWindow.webContents.on('did-fail-load', () => {
+    retryCount++;
+    if (retryCount <= 10) {
+      setTimeout(loadApp, 800);
+    } else {
+      // Fallback a archivo estático si falla el servidor HTTP
+      mainWindow.loadFile(path.join(__dirname, 'farmasys.html'));
+    }
+  });
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
+  // Mostrar si carga exitosamente
+  mainWindow.webContents.on('did-finish-load', () => {
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+  });
+
+  loadApp();
 
   mainWindow.on('closed', () => {
     mainWindow = null;
