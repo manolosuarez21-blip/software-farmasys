@@ -1466,8 +1466,8 @@
         : '<tr><td colspan="9" style="text-align:center;color:var(--gray-400);padding:24px">Sin productos en inventario</td></tr>';
     }
 
-    initData();
-    tryAutoLogin();
+    // Siempre requerir inicio de sesión al abrir el programa
+    localStorage.removeItem('fs_session');
   </script>
 </body>
 
