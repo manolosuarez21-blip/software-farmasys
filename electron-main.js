@@ -62,7 +62,10 @@ function createWindow() {
 
 app.whenReady().then(async () => {
   try {
-    await startServer();
+    // Iniciar servidor backend con protección de timeout de 8s
+    const serverPromise = startServer();
+    const timeoutPromise = new Promise((res) => setTimeout(res, 8000));
+    await Promise.race([serverPromise, timeoutPromise]);
   } catch (error) {
     console.error('Advertencia iniciando servidor:', error);
   }

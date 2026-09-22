@@ -1,5 +1,5 @@
 const { initDb, storage } = require('../config/db');
-const { sqliteAll } = require('../utils/sqlite');
+const { dbAll } = require('../utils/sql');
 
 async function getSalesReport(req, res) {
   try {
@@ -10,7 +10,7 @@ async function getSalesReport(req, res) {
       ventas = await storage.mongoDb.collection('ventas').find({}).sort({ fecha: 1 }).toArray();
       ventas = ventas.map(v => ({ ...v, id: v._id.toString() }));
     } else {
-      ventas = await sqliteAll(storage.sqliteDb, 'SELECT * FROM ventas ORDER BY fecha ASC');
+      ventas = await dbAll('SELECT * FROM ventas ORDER BY fecha ASC');
     }
 
     // Agregación diaria
@@ -77,7 +77,7 @@ async function getStockValuationReport(req, res) {
       productos = await storage.mongoDb.collection('productos').find({}).toArray();
       productos = productos.map(p => ({ ...p, id: p._id.toString() }));
     } else {
-      productos = await sqliteAll(storage.sqliteDb, 'SELECT * FROM productos');
+      productos = await dbAll('SELECT * FROM productos');
     }
 
     let totalCosto = 0;

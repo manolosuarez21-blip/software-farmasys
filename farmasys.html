@@ -48,7 +48,9 @@
     <div class="sidebar">
       <div class="sidebar-logo">
         <img src="logo.png" alt="FARMAsys Logo" class="logo-img">
-        <div class="logo-text">FARMAsys<small>v1.2</small></div>
+        <div class="logo-text">FARMAsys<small>v1.2</small>
+          <div id="dbStatusBadge" style="font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;display:inline-block;margin-top:2px;background:#e2e8f0;color:#64748b">Conectando...</div>
+        </div>
       </div>
 
       <div class="nav-section-title">Principal</div>
@@ -683,7 +685,9 @@
   </div>
 
   <script>
-    const API = window.location.origin + '/api';
+    const API = (window.location.protocol === 'file:' || window.location.origin === 'null' || !window.location.origin.startsWith('http'))
+      ? 'http://localhost:3000/api'
+      : window.location.origin + '/api';
     let currentUser = null;
     let cart = [];
     let currentImageBase64 = '';
@@ -697,8 +701,29 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = function (evt) {
-        currentImageBase64 = evt.target.result;
-        document.getElementById('imgPreviewBox').innerHTML = `<img src="${currentImageBase64}" alt="Preview">`;
+        const img = new Image();
+        img.onload = function () {
+          const maxDim = 800;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          currentImageBase64 = canvas.toDataURL('image/jpeg', 0.8);
+          document.getElementById('imgPreviewBox').innerHTML = `<img src="${currentImageBase64}" alt="Preview">`;
+        };
+        img.src = evt.target.result;
       };
       reader.readAsDataURL(file);
     }
@@ -724,8 +749,41 @@
       return data;
     }
 
+    async function updateDbBadge() {
+      try {
+        const h = await api('/health');
+        const badge = document.getElementById('dbStatusBadge');
+        if (badge) {
+          if (h.database === 'mysql') {
+            badge.style.background = '#dcfce7';
+            badge.style.color = '#15803d';
+            badge.textContent = '☁️ Nube MySQL (Clever)';
+            badge.title = 'Base de datos MySQL en Clever Cloud conectada y sincronizada';
+          } else if (h.database === 'mongo') {
+            badge.style.background = '#dcfce7';
+            badge.style.color = '#15803d';
+            badge.textContent = '☁️ Nube MongoDB';
+            badge.title = 'Base de datos en la nube Atlas conectada y sincronizada';
+          } else {
+            badge.style.background = '#fef3c7';
+            badge.style.color = '#b45309';
+            badge.textContent = '⚠️ Local SQLite';
+            badge.title = 'Modo SQLite temporal local. (Nota: en Render se reinicia al suspenderse)';
+          }
+        }
+      } catch (e) {
+        const badge = document.getElementById('dbStatusBadge');
+        if (badge) {
+          badge.style.background = '#fee2e2';
+          badge.style.color = '#b91c1c';
+          badge.textContent = '❌ Sin conexión';
+        }
+      }
+    }
+
     async function initData() {
       try {
+        updateDbBadge();
         const [productos, ventas, bodega, distribuidores, usuarios] = await Promise.all([
           api('/productos'),
           api('/ventas'),
@@ -1033,6 +1091,7 @@
         await initData();
       } catch (err) {
         console.error(err);
+        alert('❌ Error al registrar la venta: ' + (err.message || 'Intente nuevamente'));
       }
     }
 
@@ -1092,21 +1151,34 @@
         imagen: currentImageBase64 || null,
         codigo_barras: v('iBarcode') || null
       };
-      if (!payload.nombre) return;
-      if (editingProductId) {
-        await api('/productos/' + editingProductId, { method: 'PUT', body: JSON.stringify(payload) });
-      } else {
-        await api('/productos', { method: 'POST', body: JSON.stringify(payload) });
+      if (!payload.nombre) {
+        alert('Por favor ingrese el nombre del producto.');
+        return;
       }
-      closeModal('invModal');
-      editingProductId = null;
-      ['iCod', 'iNom', 'iStock', 'iBarcode', 'iPrecio', 'iCosto', 'iIngreso', 'iVence', 'iDist', 'iUbic', 'iFoto'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-      });
-      currentImageBase64 = '';
-      document.getElementById('imgPreviewBox').innerHTML = '<span style="font-size:11px;color:var(--gray-400)">Sin foto</span>';
-      await initData();
+      if (!payload.codigo) {
+        alert('Por favor ingrese un código para el producto.');
+        return;
+      }
+
+      try {
+        if (editingProductId) {
+          await api('/productos/' + editingProductId, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+          await api('/productos', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        closeModal('invModal');
+        editingProductId = null;
+        ['iCod', 'iNom', 'iStock', 'iBarcode', 'iPrecio', 'iCosto', 'iIngreso', 'iVence', 'iDist', 'iUbic', 'iFoto'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.value = '';
+        });
+        currentImageBase64 = '';
+        document.getElementById('imgPreviewBox').innerHTML = '<span style="font-size:11px;color:var(--gray-400)">Sin foto</span>';
+        await initData();
+      } catch (err) {
+        console.error(err);
+        alert('❌ Error al guardar producto: ' + (err.message || 'Intente nuevamente'));
+      }
     }
 
     async function saveBodega() {
@@ -1122,14 +1194,22 @@
         nota: v('bNota'),
         responsable: currentUser?.nombre || 'Sistema'
       };
-      if (!payload.producto_nombre || !payload.cantidad) return;
-      await api('/bodega', { method: 'POST', body: JSON.stringify(payload) });
-      closeModal('bodegaModal');
-      document.getElementById('bCant').value = '';
-      document.getElementById('bDist').value = '';
-      document.getElementById('bVence').value = '';
-      document.getElementById('bNota').value = '';
-      await initData();
+      if (!payload.producto_nombre || !payload.cantidad) {
+        alert('Seleccione un producto e ingrese la cantidad.');
+        return;
+      }
+      try {
+        await api('/bodega', { method: 'POST', body: JSON.stringify(payload) });
+        closeModal('bodegaModal');
+        document.getElementById('bCant').value = '';
+        document.getElementById('bDist').value = '';
+        document.getElementById('bVence').value = '';
+        document.getElementById('bNota').value = '';
+        await initData();
+      } catch (err) {
+        console.error(err);
+        alert('❌ Error al registrar bodega: ' + (err.message || 'Intente nuevamente'));
+      }
     }
 
     async function saveDistribuidor() {
@@ -1141,11 +1221,19 @@
         ciudad: v('dCiud'),
         estado: v('dEst')
       };
-      if (!payload.nombre) return;
-      await api('/distribuidores', { method: 'POST', body: JSON.stringify(payload) });
-      closeModal('distModal');
-      ['dNom', 'dCont', 'dTel', 'dEmail', 'dCiud'].forEach(id => document.getElementById(id).value = '');
-      await initData();
+      if (!payload.nombre) {
+        alert('Ingrese el nombre del distribuidor.');
+        return;
+      }
+      try {
+        await api('/distribuidores', { method: 'POST', body: JSON.stringify(payload) });
+        closeModal('distModal');
+        ['dNom', 'dCont', 'dTel', 'dEmail', 'dCiud'].forEach(id => document.getElementById(id).value = '');
+        await initData();
+      } catch (err) {
+        console.error(err);
+        alert('❌ Error al guardar distribuidor: ' + (err.message || 'Intente nuevamente'));
+      }
     }
 
     async function saveUsuario() {
